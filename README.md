@@ -27,7 +27,7 @@ make linux
 Options
 ```bash
 Usage: ReplyAll -interface eth0
-  -A	Analyze mode. This option allows you to see NBT-NS, BROWSER, LLMNR requests without responding. (default false)
+  -analyze	Analyze mode. This option allows you to see NBT-NS, BROWSER, LLMNR requests without responding. (default false)
   -interface string
     	Network interface to use and listen on
   -ip string
@@ -36,7 +36,7 @@ Usage: ReplyAll -interface eth0
 
 Running the tool in analyze mode only:
 ```bash
-ReplyAll.bin -interface eth0 -A
+ReplyAll.bin -interface eth0 -analyze
 ```
 
 Running the tool to respond to requests and specify the IP of 10.10.10.25:
@@ -45,7 +45,7 @@ ReplyAll.bin -interface eth0 -ip 10.10.10.25
 ```
 
 ## Future Improvements
-- Build and test on ARM and Winddows
+- Build and test on ARM, Mac, and Winddows
 - Cross compile / Docker build
 - Implement authentication servers (HTTP/SMB/MSSQL/FTP/LDAP)
 - Possibly reduce the binary size to make it easier to use on IoT devices

